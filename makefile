@@ -1,0 +1,28 @@
+all: main
+
+main: main.o heuristic.o EVRP.o stats.o 
+	g++ main.o heuristic.o EVRP.o stats.o -o main
+
+# main.o: main.cpp
+# 	g++ -c main.cpp
+
+CXXFLAGS = -O3 -march=native
+main.o: main.cpp
+	g++ $(CXXFLAGS) -c main.cpp
+
+heuristic.o: heuristic.cpp
+	g++ $(CXXFLAGS) -c heuristic.cpp
+
+EVRP.o: EVRP.cpp
+	g++ $(CXXFLAGS) -c EVRP.cpp
+
+stats.o: stats.cpp
+	g++ $(CXXFLAGS) -c stats.cpp
+
+
+# clean: 
+# 	rm -rt *o main
+
+clean: 
+# 	rm -rf *.o main
+	del /q *.o main.exe 2>nul || truenam
