@@ -3,8 +3,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from pathlib import Path
 
-arquivo = "E-n22-k4.evrp"
-# arquivo = "E-n76-k7.evrp"
+# arquivo = "E-n22-k4.evrp"
+arquivo = "E-n76-k7.evrp"
 
 resultados_caminho = Path(f"resultados/{arquivo}")
 

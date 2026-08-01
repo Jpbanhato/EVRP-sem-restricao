@@ -24,5 +24,5 @@ stats.o: stats.cpp
 # 	rm -rt *o main
 
 clean: 
-# 	rm -rf *.o main
-	del /q *.o main.exe 2>nul || truenam
+	rm -f *.o main.exe
+# 	del /q *.o main.exe 2>nul || true

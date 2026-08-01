@@ -230,6 +230,35 @@ void armazenar_solucao_candidata(int **populacao) {
     }
 }
 
+void atualizar_distancia_individuo(int idx, int *individuo) {
+    int steps, tour_length, *tour = new int[NUM_OF_CUSTOMERS+2];
+
+    steps = 0;
+    tour_length = INT_MAX;
+    tour[0] = DEPOT;
+    steps++;
+
+    int i = 0, from = 0, to = 0;
+    while(i < NUM_OF_CUSTOMERS) {
+        from = tour[steps-1];
+        to = individuo[i];
+        tour[steps] = to;
+        steps++;
+        i++;
+    }
+
+    //close EVRP tour to return back to the depot
+    if(tour[steps-1]!=DEPOT){
+    tour[steps] = DEPOT;
+    steps++;
+    }
+
+    double fitness = fitness_evaluation(tour, steps);
+    delete[] tour;
+    
+    fitness_individuos[idx] = fitness;
+}
+
 int* copia(int *pai) {
     int *filho = new int[NUM_OF_CUSTOMERS];
     for (int i = 0; i < NUM_OF_CUSTOMERS; i++) {
@@ -412,7 +441,7 @@ void reinicia_populacao_estagnacao() {
     armazenar_solucao_candidata(populacao);
 }
 
-void run_heuristic(ofstream &arquivo_run){
+void run_heuristic(ofstream &arquivo_run, ofstream &arquivo_evo_caminho){
     contador++;
                                             // printf("contador: %d\t",contador);
     int **nova_populacao = nullptr;
@@ -521,6 +550,39 @@ void run_heuristic(ofstream &arquivo_run){
         }
     }
 
+    // TRABALHO 2: BUSCA LOCAL 2-OPT NO MELHOR INDIVIDUO
+    if (FL_OPT_2) {
+        int *individuo = populacao[idx_melhor_solucao];
+        bool melhorou = true;
+        while (melhorou) {
+            melhorou = false;
+            for (int i = 0; i < NUM_OF_CUSTOMERS - 1; i++) {
+                for (int j = i + 1; j < NUM_OF_CUSTOMERS; j++) {
+                    // clientes
+                    int A = (i == 0) ? DEPOT : individuo[i - 1];
+                    int B = individuo[i]; //from
+                    int C = individuo[j]; //to
+                    int D = (j == NUM_OF_CUSTOMERS - 1) ? DEPOT : individuo[j + 1];
+                    // se distancia diminuiu, faz a troca
+                    if (get_distance(A, C) + get_distance(B, D) + 1e-9 < get_distance(A, B) + get_distance(C, D)) {
+                        int from = i, to = j;
+                        while (from < to) {
+                            int aux = individuo[from];
+                            individuo[from] = individuo[to];
+                            individuo[to] = aux;
+                            from++; to--;
+                        }
+                        melhorou = true;
+                    }
+                }
+            }
+        }
+        // atualiza a distancia do melhor individuo
+        atualizar_distancia_individuo(idx_melhor_solucao, individuo);
+    }
+
+
+
     // avaliar a populacao apos a substituicao
     // armazenar_solucao_candidata(populacao); // vou tirar pq tava comendo muitas avaliacoes
 
@@ -537,6 +599,16 @@ void run_heuristic(ofstream &arquivo_run){
         if (best_sol->tour[best_sol->steps - 1] != DEPOT) {
             best_sol->tour[best_sol->steps] = DEPOT;
             best_sol->steps++;
+        }
+        // tentando guardar a evolucao das rotas em um arquivo separado para visualizacao
+        if(arquivo_evo_caminho.is_open()) {
+            arquivo_evo_caminho << "ger=" << contador << ";len=" << best_sol->tour_length << ";seq=";
+            for (int i = 0; i < best_sol->steps; i++) {
+                arquivo_evo_caminho << best_sol->tour[i];
+                if (i < best_sol->steps - 1)
+                    arquivo_evo_caminho << "-";
+            }
+            arquivo_evo_caminho << "\n";
         }
     }
 
@@ -561,7 +633,7 @@ void run_heuristic(ofstream &arquivo_run){
     // teste de reiniciar a populacao caso haja estagnacao
     if (FL_ESTAGNACAO) {
         // se houve melhora, continua evoluindo
-        if (best_sol->tour_length < ultimo_best) {
+        if (best_sol->tour_length + 1e-9 < ultimo_best) {
             ultimo_best = best_sol->tour_length;
             contador_estagnacao = 0;
         }

@@ -12,6 +12,7 @@
 using namespace std;
 
 ofstream arquivo_run;
+ofstream arquivo_evo_caminho;
 
 /*initialiazes a run for your heuristic*/
 void start_run(int r, char *problem_instance){
@@ -22,11 +23,12 @@ void start_run(int r, char *problem_instance){
   cout << "Run: " << r << " with random seed " << r << endl;
 
   std::filesystem::path pasta_resultados = "resultados";
-  
   std::filesystem::path caminho_diretorio = pasta_resultados / problem_instance; 
   
   string nome_foto = "analise_run_" + to_string(r) + ".txt";
-  std::filesystem::path caminho_arquivo = caminho_diretorio / nome_foto;
+  string nome_evo_caminho = "evo_caminho_run_" + to_string(r) + ".txt";
+  std::filesystem::path caminho_foto = caminho_diretorio / nome_foto;
+  std::filesystem::path caminho_evo_caminho = caminho_diretorio / nome_evo_caminho;
 
   std::error_code ec;
   std::filesystem::create_directories(caminho_diretorio, ec);
@@ -34,8 +36,8 @@ void start_run(int r, char *problem_instance){
     cerr << "Erro ao criar diretorio: " << ec.message() << "\n";
   }
 
-  // 3. Abre o arquivo usando o caminho convertido para string (ou direto o path se for C++17+)
-  arquivo_run.open(caminho_arquivo.string());
+  arquivo_run.open(caminho_foto.string());
+  arquivo_evo_caminho.open(caminho_evo_caminho.string());
 }
 
 /*gets an observation of the run for your heuristic*/
@@ -47,6 +49,10 @@ void end_run(int r){
 
   if(arquivo_run.is_open()){
       arquivo_run.close();
+  }
+
+  if(arquivo_evo_caminho.is_open()){
+      arquivo_evo_caminho.close();
   }
 }
 
@@ -85,7 +91,7 @@ int main(int argc, char *argv[]) {
       /*Step 4*/
       while(!termination_condition()){
         //Execute your heuristic
-        run_heuristic(arquivo_run);  //heuristic.h
+        run_heuristic(arquivo_run, arquivo_evo_caminho);  //heuristic.h
       }
 
       // printf("saiu da heuristica");
