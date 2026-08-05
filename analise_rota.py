@@ -29,9 +29,12 @@ import io
 
 COR = "#386B5E"
 COR_DEP = "#C0603A"
+COR_EST = "#2F6DB0"
 RGB = (0.219, 0.419, 0.368)   # COR em 0..1 para alpha por aresta
 PISO = 0.10                   # opacidade minima de aresta abandonada
 DECAY = 0.45                  # decaimento por geracao (mais forte)
+
+ESTACOES = set()
 
 def ler_coordenadas(path):
     coord = []; dentro = False
@@ -42,6 +45,17 @@ def ler_coordenadas(path):
             if not s or not s[0].isdigit(): break
             p = s.split(); coord.append((float(p[1]), float(p[2])))
     return coord
+
+def ler_estacoes(path):
+    """Indices (base 0) dos nos que sao estacoes de recarga."""
+    est=set(); dentro=False
+    for linha in open(path):
+        s=linha.strip()
+        if s.startswith("STATIONS_COORD_SECTION"): dentro=True; continue
+        if dentro:
+            if not s or not s[0].isdigit(): break
+            est.add(int(s.split()[0]) - 1)   # arquivo e 1-based; coord[] e 0-based
+    return est
 
 def ler_um_log(path):
     """Uma execucao: lista de (ger, len, seq)."""
@@ -79,21 +93,30 @@ def limites(coord):
 
 def base_ax(xlim,ylim,com_curva=False):
     if com_curva:
-        fig,(ax,axc)=plt.subplots(1,2,figsize=(16,10),dpi=100,
+        fig,(ax,axc)=plt.subplots(1,2,figsize=(16,10),dpi=400,
                                   gridspec_kw={"width_ratios":[3,3],"wspace":0.05})
         ax.set_xlim(xlim); ax.set_ylim(ylim); ax.set_aspect("equal"); ax.axis("off")
         return fig,ax,axc
-    fig,ax=plt.subplots(figsize=(6,6),dpi=100)
+    fig,ax=plt.subplots(figsize=(6,6),dpi=400)
     ax.set_xlim(xlim); ax.set_ylim(ylim); ax.set_aspect("equal"); ax.axis("off")
     return fig,ax
 
 def desenhar_nos(ax, coord, ativos):
+    prim=True
     for v,(x,y) in enumerate(coord):
-        if v not in ativos:
+        if v==0 or v in ESTACOES: continue          # deposito e estacoes tem desenho proprio
+        if v in ativos:
+            ax.scatter([x],[y], s=45, color=COR, alpha=1.0, zorder=3)
+        else:
             ax.scatter([x],[y], s=35, color=COR, alpha=0.25, zorder=2)
-    for v in ativos:
+    for v in sorted(ESTACOES):                        # estacoes de recarga = triangulo
         if v==0: continue
-        x,y=coord[v]; ax.scatter([x],[y], s=45, color=COR, alpha=1.0, zorder=3)
+        x,y=coord[v]; ativo = v in ativos
+        ax.scatter([x],[y], s=95, marker="^", color=COR_EST,
+                   edgecolors="white", linewidths=0.9,
+                   alpha=1.0 if ativo else 0.35, zorder=3,
+                   label=("estação" if prim else None))
+        prim=False
     dx,dy=coord[0]
     ax.scatter([dx],[dy], s=150, marker="s", color=COR_DEP,
                edgecolors="white", linewidths=1.2, zorder=4, label="depósito")
@@ -203,6 +226,7 @@ def modo_heatmap(coord, runs, agregar, base, xlim, ylim, curva_flag=False):
         print("gravado:", base+"_heatmap_freq.png")
 
 def main():
+    global ESTACOES
     ap=argparse.ArgumentParser()
     ap.add_argument("evrp")
     ap.add_argument("entrada", help="log de UMA run, ou PASTA com evo_caminho_run_*.txt se --agregar")
@@ -212,6 +236,7 @@ def main():
     a=ap.parse_args()
 
     coord=ler_coordenadas(a.evrp)
+    ESTACOES = ler_estacoes(a.evrp)
     if a.agregar:
         pasta = a.entrada if os.path.isdir(a.entrada) else os.path.dirname(a.entrada) or "."
         runs=ler_pasta(pasta)

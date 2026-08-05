@@ -43,7 +43,7 @@ void initialize_heuristic(){
     
     // depois instanciar os parametros referentes a nova run 
     best_sol = new solution;
-    best_sol->tour = new int[NUM_OF_CUSTOMERS+NUM_OF_STATIONS*100];
+    best_sol->tour = new int[NUM_OF_CUSTOMERS+2];
     best_sol->id = 1;
     best_sol->steps = 0;
     best_sol->tour_length = INT_MAX;
@@ -161,174 +161,77 @@ void inicializa_populacao(int **populacao) {
   }
 }
 
+// double calcular_solucao_candidata(int *individuo) {
+//     // solution *solucao = new solution;
+//     int steps, tour_length, *tour = new int[NUM_OF_CUSTOMERS+2];
 
+//     steps = 0;
+//     tour_length = INT_MAX;
+//     tour[0] = DEPOT;
+//     steps++;
 
-bool continuar_viavel_pos_trajeto(float bateria_restante, int atual, int cliente) {
-    float energia_pos_cliente = bateria_restante - get_energy_consumption(atual, cliente);
-    if (energia_pos_cliente < 0)
-        return false;
-    // menor consumo de cliente até alguma estação
-    float min_ate_estacao = 1e9, min_s;
-    for (int s = 0; s < ACTUAL_PROBLEM_SIZE; s++) {
-        if (is_charging_station(s)) {
-            min_s = get_energy_consumption(cliente, s);
-            if (min_s < min_ate_estacao) {
-                min_ate_estacao = min_s;
-            }
-        }
-    }
-    return energia_pos_cliente >= min_ate_estacao;
-}
+//     int i = 0, from = 0, to = 0;
+//     while(i < NUM_OF_CUSTOMERS) {
+//       from = tour[steps-1];
+//       to = individuo[i];
+//       tour[steps] = to;
+//       steps++;
+//       i++;
+//     }
+  
+//     //close EVRP tour to return back to the depot
+//     if(tour[steps-1]!=DEPOT){
+//       tour[steps] = DEPOT;
+//       steps++;
+//     }
 
+//     // solucao->tour_length = fitness_evaluation(solucao->tour, solucao->steps);
 
-float min_consumo_ate_estacao(int no) {
-    float melhor = 1e9;
-    for (int s = 0; s < ACTUAL_PROBLEM_SIZE; s++) {
-        if (is_charging_station(s)) {
-            float d = get_energy_consumption(no, s);
-            if (d < melhor) melhor = d;
-        }
-    }
-    return melhor;
-}
+//     // return solucao->tour_length;
 
-int escolher_estacao(int atual, int cliente, float bateria_restante) {
-    // escolher a estacao s que minimiza: consumo(atual, s) + consumo(s, c)
-    // deve ser possivel chegar nela agora e depois da recarga chegar ao cliente e estacao mais proxima dele
-    float consumo_minimo = 1e9, consumo_atual_s, consumo_s_cliente;
-    int estacao_ideal = -1;
-    float min_ap_cliente = min_consumo_ate_estacao(cliente);
-    for (int s = 0; s < ACTUAL_PROBLEM_SIZE; s++) {
-        if (is_charging_station(s)) {
-            consumo_atual_s = get_energy_consumption(atual, s);
-            if (consumo_atual_s > bateria_restante)
-                continue;
-            consumo_s_cliente = get_energy_consumption(s, cliente);
-            if (consumo_s_cliente > BATTERY_CAPACITY)
-                continue;
-            if (BATTERY_CAPACITY - consumo_s_cliente < min_ap_cliente)
-                continue;
-            if (consumo_atual_s + consumo_s_cliente < consumo_minimo) {
-                consumo_minimo = consumo_atual_s + consumo_s_cliente;
-                estacao_ideal = s;
-            }
-        }
-    }
-    if (estacao_ideal != -1)
-        return estacao_ideal;
-    // caso nao tenha encontrado resposta
-    // QUALUQER estacao alcancavel
-    for (int s = 0; s < ACTUAL_PROBLEM_SIZE; s++) {
-        if (is_charging_station(s)) {
-            consumo_atual_s = get_energy_consumption(atual, s);
-            if (consumo_atual_s > bateria_restante)
-                continue;
-            consumo_s_cliente = get_energy_consumption(s, cliente);
-            if (consumo_atual_s + consumo_s_cliente < consumo_minimo) { 
-                consumo_minimo = consumo_atual_s + consumo_s_cliente;
-                estacao_ideal = s;
-            }
-        }
-    }
-    if (estacao_ideal != -1)
-        return estacao_ideal;
-    // se ainda assim
-    // estacao mais proxima (garantir que sempre vai pra alguma estacao de recarga valida)
-    consumo_minimo = 1e9;
-    for (int s = 0; s < ACTUAL_PROBLEM_SIZE; s++) {
-        if (is_charging_station(s)) {
-            consumo_atual_s = get_energy_consumption(atual, s);
-            if (consumo_atual_s < consumo_minimo) {
-                consumo_minimo = consumo_atual_s;
-                estacao_ideal = s;
-            }
-        }
-    }
-    return estacao_ideal;
-}
-
-
-// TENTANDO IMPLEMENTAR A NOVA LOGICA DE RESTRICOES DO TRABALHO 2:
-int* decodificar(int *individuo, int &tamanho) {
-    //variaveis:
-    int *rota = new int[NUM_OF_CUSTOMERS+NUM_OF_STATIONS*100], atual, estacao, step = 0;
-    float carga_restante, bateria_restante;
-    // rota = [DEPOT], carga restante = C, bateria restante = Q
-    rota[step++] = DEPOT;
-    carga_restante = MAX_CAPACITY;
-    bateria_restante = BATTERY_CAPACITY;
-
-    // para cada cliente c na permutacao:
-    for (int c = 0; c < NUM_OF_CUSTOMERS; c++) {   
-        // atual = ultimo no da rota
-        atual = rota[step - 1];
-        // # CARGA:
-        // se demanda(c) > carga_restante:
-        if (get_customer_demand(individuo[c]) > carga_restante) {
-            // # fecha rota e comeca outra
-            // rota.add(DEPOT), carga_restante = C, bateria_restante = Q, atual = DEPOT
-            // # VERIFICAR SE TEM BATERIA SUFICIENTE PARA VOLTAR PRO DEPOT, SE NAO, PASSAR NUMA ESTACAO DE RECARGA ANTES
-            if (bateria_restante - get_energy_consumption(atual, DEPOT) < 0) {
-                int estacao = escolher_estacao(atual, DEPOT, bateria_restante);
-                rota[step++] = estacao;
-                bateria_restante = BATTERY_CAPACITY;
-                atual = estacao;
-                // consome o trecho estacao -> deposito
-                bateria_restante -= get_energy_consumption(atual, DEPOT);
-            }
-            rota[step++] = DEPOT;
-            carga_restante = MAX_CAPACITY;
-            bateria_restante = BATTERY_CAPACITY;
-            atual = DEPOT;
-        }
-        // # BATERIA:
-        // se nao consigo ir de atual para c e ficar viavel:
-        if (!continuar_viavel_pos_trajeto(bateria_restante, atual, individuo[c])) {
-            // estacao = escolher estacao (atual, c), rota.add(estacao), bateria_restante = Q, atual = estacao
-            estacao = escolher_estacao(atual, individuo[c], bateria_restante);
-            rota[step++] = estacao;
-            bateria_restante = BATTERY_CAPACITY;
-            atual = estacao;
-        }
-        // # VAI PARA O CLIENTE:
-        // rota.add(c), bateria_restante -= consumo(atual, c), carga_restante -= demanda(c)
-        rota[step++] = individuo[c];
-        bateria_restante -= get_energy_consumption(atual, individuo[c]);
-        carga_restante -= get_customer_demand(individuo[c]);
-    }
-    // rota.add(DEPOT),  return rota
-    // # VERIFICAR SE TEM BATERIA SUFICIENTE PARA VOLTAR PRO DEPOT, SE NAO, PASSAR NUMA ESTACAO DE RECARGA ANTES
-    atual = rota[step - 1];
-    if (bateria_restante - get_energy_consumption(atual, DEPOT) < 0) {
-        int estacao = escolher_estacao(atual, DEPOT, bateria_restante);
-        rota[step++] = estacao;
-        bateria_restante = BATTERY_CAPACITY;
-        atual = estacao;
-        // consome o trecho estacao -> deposito
-        bateria_restante -= get_energy_consumption(atual, DEPOT);
-    }
-    rota[step++] = DEPOT;
-    tamanho = step;
-    return rota; //depois tem que ver onde desalocar esse vetor de rota aqui
-}
-
+//     double fitness = fitness_evaluation(tour, steps);
+//     delete[] tour;
+//     return fitness;
+// }
 
 void armazenar_solucao_candidata(int **populacao) {
-    // para cada individuo da populacao
-    for (int idx = 0; idx < POP_SIZE; idx++) {
-        int tamanho;
-        // -----> ETAPA 00: DECODIFICAR
-        int *rota = decodificar(populacao[idx], tamanho);
-        // -----> ETAPA 01) AVALIAR O FITNESS:
-        fitness_individuos[idx] = fitness_evaluation(rota, tamanho);
-        // limpa memoria
-        delete[] rota;
+    for (int idx = 0; idx < POP_SIZE; idx++) {    
+        // solution *solucao = new solution;
+        int steps, tour_length, *tour = new int[NUM_OF_CUSTOMERS+2];
+
+        steps = 0;
+        tour_length = INT_MAX;
+        tour[0] = DEPOT;
+        steps++;
+
+        int i = 0, from = 0, to = 0;
+        while(i < NUM_OF_CUSTOMERS) {
+        from = tour[steps-1];
+        to = populacao[idx][i];
+        tour[steps] = to;
+        steps++;
+        i++;
+        }
+    
+        //close EVRP tour to return back to the depot
+        if(tour[steps-1]!=DEPOT){
+        tour[steps] = DEPOT;
+        steps++;
+        }
+
+        // solucao->tour_length = fitness_evaluation(solucao->tour, solucao->steps);
+
+        // return solucao->tour_length;
+
+        double fitness = fitness_evaluation(tour, steps);
+        delete[] tour;
+        
+        fitness_individuos[idx] = fitness;
     }
 }
 
-// VAI TER QUE SER ADAPTADO PARA AS RESTRICOES, POR ENQUANTO, NAO FUNCIONA!!!!!!
 void atualizar_distancia_individuo(int idx, int *individuo) {
-    int steps, tour_length, *tour = new int[NUM_OF_CUSTOMERS+NUM_OF_STATIONS*100];
+    int steps, tour_length, *tour = new int[NUM_OF_CUSTOMERS+2];
 
     steps = 0;
     tour_length = INT_MAX;
@@ -363,6 +266,27 @@ int* copia(int *pai) {
     }
     return filho;
 }
+
+// int* selecao_torneio(int **populacao) {
+//     // sortear K_TORNEIO individuos da populacao e escolher o melhor
+//     int *idx = new int[K_TORNEIO];
+//     double *func_obj = new double[K_TORNEIO];
+//     for (int i = 0; i < K_TORNEIO; i++) {
+//         idx[i] = rand() % POP_SIZE;
+//         func_obj[i] = calcular_solucao_candidata(populacao[idx[i]]);
+//     }
+//     int idx_vencedor_torneio = 0;
+//     for (int i = 0; i < K_TORNEIO - 1; i++) {
+//         if (func_obj[i+1] < func_obj[idx_vencedor_torneio])
+//             idx_vencedor_torneio = i+1;
+//     }
+//     int *vencedor_torneio = populacao[idx[idx_vencedor_torneio]];
+
+//     delete[] idx;
+//     delete[] func_obj;
+
+//     return vencedor_torneio;
+// }
 
 int* selecao_torneio(int **populacao) {
     // sortear K_TORNEIO individuos da populacao e escolher o melhor
@@ -657,22 +581,25 @@ void run_heuristic(ofstream &arquivo_run, ofstream &arquivo_evo_caminho){
         atualizar_distancia_individuo(idx_melhor_solucao, individuo);
     }
 
+
+
+    // avaliar a populacao apos a substituicao
+    // armazenar_solucao_candidata(populacao); // vou tirar pq tava comendo muitas avaliacoes
+
     // atualizar a best_sol para a main ler
     if (fitness_individuos[idx_melhor_solucao] < best_sol->tour_length) {
-        int tamanho;
-        int *rota = decodificar(populacao[idx_melhor_solucao], tamanho);
         best_sol->tour_length = fitness_individuos[idx_melhor_solucao];
         best_sol->steps = 0;
-        // best_sol->tour[best_sol->steps] = DEPOT;
-        // best_sol->steps++;
-        for (int i = 0; i < tamanho; i++) {
-            best_sol->tour[best_sol->steps] = rota[i];
+        best_sol->tour[best_sol->steps] = DEPOT;
+        best_sol->steps++;
+        for (int i = 0; i < NUM_OF_CUSTOMERS; i++) {
+            best_sol->tour[best_sol->steps] = populacao[idx_melhor_solucao][i];
             best_sol->steps++;
         }
-        // if (best_sol->tour[best_sol->steps - 1] != DEPOT) {
-        //     best_sol->tour[best_sol->steps] = DEPOT;
-        //     best_sol->steps++;
-        // }
+        if (best_sol->tour[best_sol->steps - 1] != DEPOT) {
+            best_sol->tour[best_sol->steps] = DEPOT;
+            best_sol->steps++;
+        }
         // tentando guardar a evolucao das rotas em um arquivo separado para visualizacao
         if(arquivo_evo_caminho.is_open()) {
             arquivo_evo_caminho << "ger=" << contador << ";len=" << best_sol->tour_length << ";seq=";
@@ -683,7 +610,6 @@ void run_heuristic(ofstream &arquivo_run, ofstream &arquivo_evo_caminho){
             }
             arquivo_evo_caminho << "\n";
         }
-        delete[] rota;
     }
 
                                             // if (contador % 75000 == 0) {

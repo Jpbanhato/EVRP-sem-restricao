@@ -25,4 +25,4 @@ stats.o: stats.cpp
 
 clean: 
 	rm -f *.o main.exe
-# 	del /q *.o main.exe 2>nul || true
+# 	del /f /q *.o main.exe 2>nul || exit 0
