@@ -1,4 +1,5 @@
 resultados/
+grid_resultados/
 venv/
 *.evrp
 *.txt

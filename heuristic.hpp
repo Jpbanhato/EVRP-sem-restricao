@@ -1,14 +1,15 @@
 #include <fstream>
 
 /* parametros do algoritmo genetico elaborado */
-#define PROB_CROSSOVER 0.7
-#define PROB_MUTACAO 0.7 //aumentei aqui de acordo com a primeira apresentacao e sugestao do heder
-#define POP_SIZE 50
-#define K_TORNEIO 2
+#define PROB_CROSSOVER 0.9
+#define PROB_MUTACAO 0.9 //aumentei aqui de acordo com a primeira apresentacao e sugestao do heder
+#define POP_SIZE 100
+#define K_TORNEIO 10
 
+#define FL_OPT_2 true
+#define FL_OPT_2_APENAS_MELHOR true
 #define FL_ESTAGNACAO true
-#define FL_OPT_2 false
-#define LIMITE_ESTAGNACAO 1000
+#define LIMITE_ESTAGNACAO 10000
 
 struct solution{
   int *tour;	//this is what the fitness_evaluation function in EVRP.hpp will evaluate
